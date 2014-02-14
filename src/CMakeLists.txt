@@ -25,6 +25,7 @@ if (QT_VERSION_MINOR GREATER 5)
   endif(QT_VERSION_MINOR GREATER 7)
 endif(QT_VERSION_MINOR GREATER 5)
 add_definitions(-DQT_NO_URL_CAST_FROM_STRING)
+add_definitions(-DBOOST_BIND_NO_PLACEHOLDERS)
 
 include_directories(${CMAKE_BINARY_DIR})
 include_directories(${GLIB_INCLUDE_DIRS})
@@ -134,6 +135,7 @@ set(SOURCES
   devices/deviceproperties.cpp
   devices/devicestatefiltermodel.cpp
   devices/deviceview.cpp
+  devices/deviceviewcontainer.cpp
   devices/filesystemdevice.cpp
 
   engines/enginebase.cpp
@@ -308,6 +310,7 @@ set(SOURCES
   songinfo/songkickconcerts.cpp
   songinfo/songkickconcertwidget.cpp
   songinfo/songplaystats.cpp
+  songinfo/ultimatelyricslyric.cpp
   songinfo/ultimatelyricsprovider.cpp
   songinfo/ultimatelyricsreader.cpp
 
@@ -445,6 +448,7 @@ set(HEADERS
   devices/deviceproperties.h
   devices/devicestatefiltermodel.h
   devices/deviceview.h
+  devices/deviceviewcontainer.h
   devices/filesystemdevice.h
 
   engines/enginebase.h
@@ -592,6 +596,7 @@ set(HEADERS
   songinfo/songkickconcerts.h
   songinfo/songkickconcertwidget.h
   songinfo/songplaystats.h
+  songinfo/ultimatelyricslyric.h
   songinfo/ultimatelyricsprovider.h
   songinfo/ultimatelyricsreader.h
 
@@ -670,6 +675,7 @@ set(UI
   covers/coversearchstatisticsdialog.ui
 
   devices/deviceproperties.ui
+  devices/deviceviewcontainer.ui
 
   globalsearch/globalsearchsettingspage.ui
   globalsearch/globalsearchview.ui
@@ -1022,9 +1028,13 @@ optional_source(HAVE_AUDIOCD
   SOURCES
     devices/cddadevice.cpp
     devices/cddalister.cpp
+    ui/ripcd.cpp
   HEADERS
     devices/cddadevice.h
     devices/cddalister.h
+    ui/ripcd.h
+  UI
+    ui/ripcd.ui
 )
 
 # mtp device
@@ -1190,6 +1200,7 @@ target_link_libraries(clementine_lib
   ${QTSINGLECOREAPPLICATION_LIBRARIES}
   ${QTIOCOMPRESSOR_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
+  ${SQLITE_LIBRARIES}
   z
   Qocoa
 )
@@ -1263,11 +1274,8 @@ else (APPLE)
   target_link_libraries(clementine_lib ${QXT_LIBRARIES})
 endif (APPLE)
 
-# Link against the qsqlite plugin on windows and mac
-if(HAVE_STATIC_SQLITE)
-  set(3RDPARTY_SQLITE_LIBRARY qsqlite)
-  target_link_libraries(clementine_lib qsqlite)
-endif(HAVE_STATIC_SQLITE)
+set(3RDPARTY_SQLITE_LIBRARY qsqlite)
+target_link_libraries(clementine_lib qsqlite)
 
 if (WIN32)
   target_link_libraries(clementine_lib
@@ -1355,6 +1363,21 @@ if (APPLE)
   install(DIRECTORY "${GROWL}/Versions/Current/Resources"
     DESTINATION "${CMAKE_BINARY_DIR}/clementine.app/Contents/Frameworks/Growl.framework")
 
+  install(FILES "${QT_QTCORE_LIBRARY}/Contents/Info.plist"
+    DESTINATION "${CMAKE_BINARY_DIR}/clementine.app/Contents/Frameworks/QtCore.framework/Contents")
+  install(FILES "${QT_QTGUI_LIBRARY}/Contents/Info.plist"
+    DESTINATION "${CMAKE_BINARY_DIR}/clementine.app/Contents/Frameworks/QtGui.framework/Contents")
+  install(FILES "${QT_QTNETWORK_LIBRARY}/Contents/Info.plist"
+    DESTINATION "${CMAKE_BINARY_DIR}/clementine.app/Contents/Frameworks/QtNetwork.framework/Contents")
+  install(FILES "${QT_QTOPENGL_LIBRARY}/Contents/Info.plist"
+    DESTINATION "${CMAKE_BINARY_DIR}/clementine.app/Contents/Frameworks/QtOpenGL.framework/Contents")
+  install(FILES "${QT_QTSQL_LIBRARY}/Contents/Info.plist"
+    DESTINATION "${CMAKE_BINARY_DIR}/clementine.app/Contents/Frameworks/QtSql.framework/Contents")
+  install(FILES "${QT_QTSVG_LIBRARY}/Contents/Info.plist"
+    DESTINATION "${CMAKE_BINARY_DIR}/clementine.app/Contents/Frameworks/QtSvg.framework/Contents")
+  install(FILES "${QT_QTXML_LIBRARY}/Contents/Info.plist"
+    DESTINATION "${CMAKE_BINARY_DIR}/clementine.app/Contents/Frameworks/QtXml.framework/Contents")
+
   if (HAVE_BREAKPAD)
     install(DIRECTORY
         ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/google-breakpad/client/mac/build/Release/Breakpad.framework
@@ -1388,7 +1411,7 @@ if (APPLE)
     add_custom_target(
       sign
       COMMAND
-      codesign -s ${APPLE_DEVELOPER_ID} -fv ${PROJECT_BINARY_DIR}/clementine.app
+      ${PROJECT_SOURCE_DIR}/dist/codesign.py ${APPLE_DEVELOPER_ID} ${PROJECT_BINARY_DIR}/clementine.app
       DEPENDS clementine
       VERBATIM
     )

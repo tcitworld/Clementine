@@ -1,5 +1,8 @@
 #include "gtest/gtest.h"
 
+#include <functional>
+#include <memory>
+
 #include <QCoreApplication>
 #include <QPointer>
 #include <QSharedPointer>
@@ -42,7 +45,7 @@ TEST(ClosureTest, ClosureDeletesSelf) {
 TEST(ClosureTest, ClosureDoesNotCrashWithSharedPointerSender) {
   TestQObject receiver;
   TestQObject* sender;
-  boost::scoped_ptr<QSignalSpy> spy;
+  std::unique_ptr<QSignalSpy> spy;
   QPointer<_detail::ObjectHelper> closure;
   {
     QSharedPointer<TestQObject> sender_shared(new TestQObject);
@@ -92,7 +95,7 @@ TEST(ClosureTest, ClosureWorksWithStandardFunctions) {
   bool called = false;
   int question = 42;
   int answer = 0;
-  std::tr1::function<void(bool*,int,int*)> callback(&Foo);
+  std::function<void(bool*,int,int*)> callback(&Foo);
   NewClosure(
       &sender, SIGNAL(Emitted()),
       callback, &called, question, &answer);

@@ -18,7 +18,8 @@
  * <title>Example launch line</title>
  * <para>
  * <programlisting>
- * gst-launch audiotestsrc ! audioconvert ! fftwspectrum ! fftwunspectrum ! audioconvert ! alsasink
+ * gst-launch audiotestsrc ! audioconvert ! fftwspectrum ! fftwunspectrum !
+ *audioconvert ! alsasink
  * </programlisting>
  * </para>
  * </refsect2>
@@ -36,7 +37,7 @@
  */
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#include <config.h>
 #endif
 
 #include <gst/gst.h>
@@ -47,12 +48,11 @@
 #include "gstfftwspectrum.h"
 #include "spectrum.h"
 
-GST_DEBUG_CATEGORY (gst_fftwspectrum_debug);
+GST_DEBUG_CATEGORY(gst_fftwspectrum_debug);
 #define GST_CAT_DEFAULT gst_fftwspectrum_debug
 
 /* Filter signals and args */
-enum
-{
+enum {
   /* FILL ME */
   LAST_SIGNAL
 };
@@ -60,108 +60,94 @@ enum
 /* The size and step arguments are actually only default values
  * used to fixate the size and step properties of the source cap.
  */
-enum
-{
-  ARG_0,
-  ARG_DEF_SIZE,
-  ARG_DEF_STEP,
-  ARG_HIQUALITY
-};
+enum { ARG_0, ARG_DEF_SIZE, ARG_DEF_STEP, ARG_HIQUALITY };
 
-#define DEF_SIZE_DEFAULT      1024
-#define DEF_STEP_DEFAULT      512
-#define HIQUALITY_DEFAULT     TRUE
+#define DEF_SIZE_DEFAULT 1024
+#define DEF_STEP_DEFAULT 512
+#define HIQUALITY_DEFAULT TRUE
 
-static GstStaticPadTemplate sink_factory 
-  = GST_STATIC_PAD_TEMPLATE ("sink",
-			     GST_PAD_SINK,
-			     GST_PAD_ALWAYS,
-			     GST_STATIC_CAPS 
-			       ( SPECTRUM_SIGNAL_CAPS )
-			     );
+static GstStaticPadTemplate sink_factory =
+    GST_STATIC_PAD_TEMPLATE("sink", GST_PAD_SINK, GST_PAD_ALWAYS,
+                            GST_STATIC_CAPS(SPECTRUM_SIGNAL_CAPS));
 
 /* See spectrum.h for a definition of the frequency caps */
-static GstStaticPadTemplate src_factory 
-  = GST_STATIC_PAD_TEMPLATE ("src",
-			     GST_PAD_SRC,
-			     GST_PAD_ALWAYS,
-			     GST_STATIC_CAPS
-			       ( SPECTRUM_FREQ_CAPS )
-			     );
+static GstStaticPadTemplate src_factory = GST_STATIC_PAD_TEMPLATE(
+    "src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS(SPECTRUM_FREQ_CAPS));
 
 G_DEFINE_TYPE(GstFFTWSpectrum, gst_fftwspectrum, GST_TYPE_ELEMENT);
 
-static void gst_fftwspectrum_set_property (GObject *object, guint prop_id,
-    const GValue *value, GParamSpec *pspec);
-static void gst_fftwspectrum_get_property (GObject *object, guint prop_id,
-    GValue *value, GParamSpec *pspec);
+static void gst_fftwspectrum_set_property(GObject* object, guint prop_id,
+                                          const GValue* value,
+                                          GParamSpec* pspec);
+static void gst_fftwspectrum_get_property(GObject* object, guint prop_id,
+                                          GValue* value, GParamSpec* pspec);
 
-static gboolean gst_fftwspectrum_sink_event(
-    GstPad* pad, GstObject* parent, GstEvent* event);
-static gboolean gst_fftwspectrum_src_event(
-    GstPad* pad, GstObject* parent, GstEvent* event);
-static gboolean gst_fftwspectrum_src_query(
-    GstPad* pad, GstObject* parent, GstQuery* query);
-static gboolean gst_fftwspectrum_sink_query(
-    GstPad* pad, GstObject* parent, GstQuery* query);
-static gboolean gst_fftwspectrum_set_sink_caps (GstPad *pad, GstCaps *caps);
-static gboolean gst_fftwspectrum_set_src_caps (GstPad *pad, GstCaps *caps);
-static void     gst_fftwspectrum_fixatecaps (GstPad *pad, GstCaps *caps);
-static GstCaps *gst_fftwspectrum_getcaps (GstPad *pad);
+static gboolean gst_fftwspectrum_sink_event(GstPad* pad, GstObject* parent,
+                                            GstEvent* event);
+static gboolean gst_fftwspectrum_src_event(GstPad* pad, GstObject* parent,
+                                           GstEvent* event);
+static gboolean gst_fftwspectrum_src_query(GstPad* pad, GstObject* parent,
+                                           GstQuery* query);
+static gboolean gst_fftwspectrum_sink_query(GstPad* pad, GstObject* parent,
+                                            GstQuery* query);
+static gboolean gst_fftwspectrum_set_sink_caps(GstPad* pad, GstCaps* caps);
+static gboolean gst_fftwspectrum_set_src_caps(GstPad* pad, GstCaps* caps);
+static void gst_fftwspectrum_fixatecaps(GstPad* pad, GstCaps* caps);
+static GstCaps* gst_fftwspectrum_getcaps(GstPad* pad);
 
-static GstFlowReturn gst_fftwspectrum_chain(
-    GstPad *pad, GstObject* object, GstBuffer *buf);
-static GstStateChangeReturn gst_fftwspectrum_change_state (GstElement *element,
-    GstStateChange transition);
+static GstFlowReturn gst_fftwspectrum_chain(GstPad* pad, GstObject* object,
+                                            GstBuffer* buf);
+static GstStateChangeReturn gst_fftwspectrum_change_state(
+    GstElement* element, GstStateChange transition);
 
-
-#define OUTPUT_SIZE(conv) (((conv)->size/2+1)*sizeof(fftw_complex))
-
+#define OUTPUT_SIZE(conv) (((conv)->size / 2 + 1) * sizeof(fftw_complex))
 
 /***************************************************************/
 /* GObject boilerplate stuff                                   */
 /***************************************************************/
 
-
 /* initialize the plugin's class */
-static void
-gst_fftwspectrum_class_init (GstFFTWSpectrumClass * klass)
-{
-  GObjectClass *gobject_class;
-  GstElementClass *gstelement_class;
+static void gst_fftwspectrum_class_init(GstFFTWSpectrumClass* klass) {
+  GObjectClass* gobject_class;
+  GstElementClass* gstelement_class;
 
-  gobject_class = (GObjectClass *) klass;
-  gstelement_class = (GstElementClass *) klass;
+  gobject_class = (GObjectClass*)klass;
+  gstelement_class = (GstElementClass*)klass;
 
   gobject_class->set_property = gst_fftwspectrum_set_property;
   gobject_class->get_property = gst_fftwspectrum_get_property;
 
-  g_object_class_install_property (gobject_class, ARG_DEF_SIZE,
-      g_param_spec_int ("def-size", "Default Size", 
-	  "Apply a Fourier transform to this many samples at a time (default value)",
-	  1, G_MAXINT32, DEF_SIZE_DEFAULT, G_PARAM_READWRITE));
+  g_object_class_install_property(
+      gobject_class, ARG_DEF_SIZE,
+      g_param_spec_int("def-size", "Default Size",
+                       "Apply a Fourier transform to this many samples at a "
+                       "time (default value)",
+                       1, G_MAXINT32, DEF_SIZE_DEFAULT, G_PARAM_READWRITE));
 
-  g_object_class_install_property (gobject_class, ARG_DEF_STEP,
-      g_param_spec_int ("def-step", "Default Step", 
-	  "Advance the stream this many samples each time (default value)",
-	  1, G_MAXINT32, DEF_STEP_DEFAULT, G_PARAM_READWRITE));
+  g_object_class_install_property(
+      gobject_class, ARG_DEF_STEP,
+      g_param_spec_int(
+          "def-step", "Default Step",
+          "Advance the stream this many samples each time (default value)", 1,
+          G_MAXINT32, DEF_STEP_DEFAULT, G_PARAM_READWRITE));
 
-  g_object_class_install_property (gobject_class, ARG_HIQUALITY,
-      g_param_spec_boolean ("hiquality", "High Quality", 
-	  "Use a more time-consuming, higher quality algorithm chooser",
-	  HIQUALITY_DEFAULT, G_PARAM_READWRITE));
+  g_object_class_install_property(
+      gobject_class, ARG_HIQUALITY,
+      g_param_spec_boolean(
+          "hiquality", "High Quality",
+          "Use a more time-consuming, higher quality algorithm chooser",
+          HIQUALITY_DEFAULT, G_PARAM_READWRITE));
 
-  gstelement_class->change_state 
-    = GST_DEBUG_FUNCPTR (gst_fftwspectrum_change_state);
+  gstelement_class->change_state =
+      GST_DEBUG_FUNCPTR(gst_fftwspectrum_change_state);
 
-  gst_element_class_add_pad_template (GST_ELEMENT_CLASS(klass),
-      gst_static_pad_template_get (&src_factory));
-  gst_element_class_add_pad_template (GST_ELEMENT_CLASS(klass),
-      gst_static_pad_template_get (&sink_factory));
+  gst_element_class_add_pad_template(GST_ELEMENT_CLASS(klass),
+                                     gst_static_pad_template_get(&src_factory));
+  gst_element_class_add_pad_template(
+      GST_ELEMENT_CLASS(klass), gst_static_pad_template_get(&sink_factory));
 
   gst_element_class_set_static_metadata(
-      GST_ELEMENT_CLASS(klass),
-      "FFTW-based Fourier transform",
+      GST_ELEMENT_CLASS(klass), "FFTW-based Fourier transform",
       "Filter/Converter/Spectrum",
       "Convert a raw audio stream into a frequency spectrum",
       "Joe Rabinoff <bobqwatson@yahoo.com>");
@@ -172,33 +158,28 @@ gst_fftwspectrum_class_init (GstFFTWSpectrumClass * klass)
  * set functions
  * initialize structure
  */
-static void
-gst_fftwspectrum_init (GstFFTWSpectrum * conv)
-{
+static void gst_fftwspectrum_init(GstFFTWSpectrum* conv) {
   GstElementClass* klass =
       G_TYPE_INSTANCE_GET_CLASS(conv, GST_ELEMENT_TYPE, GstElementClass);
 
-  conv->sinkpad =
-      gst_pad_new_from_template 
-          (gst_element_class_get_pad_template (klass, "sink"), "sink");
+  conv->sinkpad = gst_pad_new_from_template(
+      gst_element_class_get_pad_template(klass, "sink"), "sink");
   gst_pad_set_event_function(conv->sinkpad, gst_fftwspectrum_sink_event);
   gst_pad_set_query_function(conv->srcpad, gst_fftwspectrum_src_query);
 
-  gst_pad_set_chain_function (conv->sinkpad,
-      GST_DEBUG_FUNCPTR (gst_fftwspectrum_chain));
+  gst_pad_set_chain_function(conv->sinkpad,
+                             GST_DEBUG_FUNCPTR(gst_fftwspectrum_chain));
 
-  conv->srcpad =
-      gst_pad_new_from_template 
-          (gst_element_class_get_pad_template (klass, "src"), "src");
+  conv->srcpad = gst_pad_new_from_template(
+      gst_element_class_get_pad_template(klass, "src"), "src");
   gst_pad_set_event_function(conv->srcpad, gst_fftwspectrum_src_event);
   gst_pad_set_query_function(conv->sinkpad, gst_fftwspectrum_sink_query);
 
-  //gst_pad_set_fixatecaps_function (conv->srcpad,
+  // gst_pad_set_fixatecaps_function (conv->srcpad,
   //    GST_DEBUG_FUNCPTR (gst_fftwspectrum_fixatecaps));
 
-
-  gst_element_add_pad (GST_ELEMENT (conv), conv->sinkpad);
-  gst_element_add_pad (GST_ELEMENT (conv), conv->srcpad);
+  gst_element_add_pad(GST_ELEMENT(conv), conv->sinkpad);
+  gst_element_add_pad(GST_ELEMENT(conv), conv->srcpad);
 
   /* These are set once the (source) capabilities are determined */
   conv->rate = 0;
@@ -206,25 +187,24 @@ gst_fftwspectrum_init (GstFFTWSpectrum * conv)
   conv->step = 0;
 
   /* These are set when we change to READY */
-  conv->fftw_in   = NULL;
-  conv->fftw_out  = NULL;
+  conv->fftw_in = NULL;
+  conv->fftw_out = NULL;
   conv->fftw_plan = NULL;
 
   /* These are set when we start receiving data */
-  conv->samples    = NULL;
+  conv->samples = NULL;
   conv->numsamples = 0;
-  conv->timestamp  = 0;
-  conv->offset     = 0;
+  conv->timestamp = 0;
+  conv->offset = 0;
 
   /* Properties */
   conv->def_size = DEF_SIZE_DEFAULT;
   conv->def_step = DEF_STEP_DEFAULT;
-  conv->hi_q     = HIQUALITY_DEFAULT;
+  conv->hi_q = HIQUALITY_DEFAULT;
 }
 
-static gboolean
-gst_fftwspectrum_sink_event(GstPad* pad, GstObject* parent, GstEvent* event)
-{
+static gboolean gst_fftwspectrum_sink_event(GstPad* pad, GstObject* parent,
+                                            GstEvent* event) {
   GstFFTWSpectrum* conv = GST_FFTWSPECTRUM(parent);
   switch (GST_EVENT_TYPE(event)) {
     case GST_EVENT_CAPS: {
@@ -238,9 +218,8 @@ gst_fftwspectrum_sink_event(GstPad* pad, GstObject* parent, GstEvent* event)
   }
 }
 
-static gboolean
-gst_fftwspectrum_src_event(GstPad* pad, GstObject* parent, GstEvent* event)
-{
+static gboolean gst_fftwspectrum_src_event(GstPad* pad, GstObject* parent,
+                                           GstEvent* event) {
   switch (GST_EVENT_TYPE(event)) {
     case GST_EVENT_CAPS: {
       GstCaps* caps = NULL;
@@ -253,9 +232,8 @@ gst_fftwspectrum_src_event(GstPad* pad, GstObject* parent, GstEvent* event)
   }
 }
 
-static gboolean
-gst_fftwspectrum_src_query(GstPad* pad, GstObject* parent, GstQuery* query)
-{
+static gboolean gst_fftwspectrum_src_query(GstPad* pad, GstObject* parent,
+                                           GstQuery* query) {
   switch (GST_QUERY_TYPE(query)) {
     case GST_QUERY_CAPS: {
       GstCaps* caps = gst_fftwspectrum_getcaps(pad);
@@ -267,9 +245,8 @@ gst_fftwspectrum_src_query(GstPad* pad, GstObject* parent, GstQuery* query)
   }
 }
 
-static gboolean
-gst_fftwspectrum_sink_query(GstPad* pad, GstObject* parent, GstQuery* query)
-{
+static gboolean gst_fftwspectrum_sink_query(GstPad* pad, GstObject* parent,
+                                            GstQuery* query) {
   switch (GST_QUERY_TYPE(query)) {
     case GST_QUERY_CAPS: {
       GstCaps* caps = gst_fftwspectrum_getcaps(pad);
@@ -281,80 +258,67 @@ gst_fftwspectrum_sink_query(GstPad* pad, GstObject* parent, GstQuery* query)
   }
 }
 
-static void
-gst_fftwspectrum_set_property (GObject * object, guint prop_id,
-    const GValue * value, GParamSpec * pspec)
-{
-  GstFFTWSpectrum *conv = GST_FFTWSPECTRUM (object);
+static void gst_fftwspectrum_set_property(GObject* object, guint prop_id,
+                                          const GValue* value,
+                                          GParamSpec* pspec) {
+  GstFFTWSpectrum* conv = GST_FFTWSPECTRUM(object);
 
-  switch (prop_id) 
-    {
+  switch (prop_id) {
     case ARG_DEF_SIZE:
-      conv->def_size = g_value_get_int (value);
+      conv->def_size = g_value_get_int(value);
       break;
     case ARG_DEF_STEP:
-      conv->def_step = g_value_get_int (value);
+      conv->def_step = g_value_get_int(value);
       break;
     case ARG_HIQUALITY:
-      conv->hi_q = g_value_get_boolean (value);
+      conv->hi_q = g_value_get_boolean(value);
       break;
     default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
       break;
-    }
+  }
 }
 
-static void
-gst_fftwspectrum_get_property (GObject * object, guint prop_id,
-    GValue * value, GParamSpec * pspec)
-{
-  GstFFTWSpectrum *conv = GST_FFTWSPECTRUM (object);
+static void gst_fftwspectrum_get_property(GObject* object, guint prop_id,
+                                          GValue* value, GParamSpec* pspec) {
+  GstFFTWSpectrum* conv = GST_FFTWSPECTRUM(object);
 
-  switch (prop_id) 
-    {
+  switch (prop_id) {
     case ARG_DEF_SIZE:
-      g_value_set_int (value, conv->def_size);
+      g_value_set_int(value, conv->def_size);
       break;
     case ARG_DEF_STEP:
-      g_value_set_int (value, conv->def_step);
+      g_value_set_int(value, conv->def_step);
       break;
     case ARG_HIQUALITY:
-      g_value_set_boolean (value, conv->hi_q);
+      g_value_set_boolean(value, conv->hi_q);
       break;
     default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
       break;
-    }
+  }
 }
-
 
 /* Allocate and deallocate fftw state data */
-static void
-free_fftw_data (GstFFTWSpectrum *conv)
-{
-  if(conv->fftw_plan != NULL)
-    fftw_destroy_plan (conv->fftw_plan);
-  if(conv->fftw_in != NULL)
-    fftw_free (conv->fftw_in);
-  if(conv->fftw_out != NULL)
-    fftw_free (conv->fftw_out);
+static void free_fftw_data(GstFFTWSpectrum* conv) {
+  if (conv->fftw_plan != NULL) fftw_destroy_plan(conv->fftw_plan);
+  if (conv->fftw_in != NULL) fftw_free(conv->fftw_in);
+  if (conv->fftw_out != NULL) fftw_free(conv->fftw_out);
 
-  conv->fftw_in   = NULL;
-  conv->fftw_out  = NULL;
+  conv->fftw_in = NULL;
+  conv->fftw_out = NULL;
   conv->fftw_plan = NULL;
 }
 
-static void
-alloc_fftw_data (GstFFTWSpectrum *conv)
-{
-  free_fftw_data (conv);
+static void alloc_fftw_data(GstFFTWSpectrum* conv) {
+  free_fftw_data(conv);
 
-  GST_DEBUG ("Allocating data for size = %d and step = %d",
-	     conv->size, conv->step);
+  GST_DEBUG("Allocating data for size = %d and step = %d", conv->size,
+            conv->step);
 
-  conv->fftw_in  = (double *) fftw_malloc (sizeof(double) * conv->size);
-  conv->fftw_out = (double *) fftw_malloc (OUTPUT_SIZE (conv));
-  
+  conv->fftw_in = (double*)fftw_malloc(sizeof(double) * conv->size);
+  conv->fftw_out = (double*)fftw_malloc(OUTPUT_SIZE(conv));
+
   /* We use the simplest real-to-complex algorithm, which takes n real
    * inputs and returns floor(n/2) + 1 complex outputs (the other n/2
    * outputs are the hermetian conjugates).  This should be optimal for
@@ -363,13 +327,11 @@ alloc_fftw_data (GstFFTWSpectrum *conv)
 
   static GStaticMutex mutex = G_STATIC_MUTEX_INIT;
   g_static_mutex_lock(&mutex);
-  conv->fftw_plan 
-    = fftw_plan_dft_r2c_1d(conv->size, conv->fftw_in,
-          (fftw_complex *) conv->fftw_out,
-			    conv->hi_q ? FFTW_MEASURE : FFTW_ESTIMATE);
+  conv->fftw_plan = fftw_plan_dft_r2c_1d(
+      conv->size, conv->fftw_in, (fftw_complex*)conv->fftw_out,
+      conv->hi_q ? FFTW_MEASURE : FFTW_ESTIMATE);
   g_static_mutex_unlock(&mutex);
 }
-
 
 /***************************************************************/
 /* Capabilities negotiation                                    */
@@ -378,7 +340,7 @@ alloc_fftw_data (GstFFTWSpectrum *conv)
 /* The input and output capabilities are only related by the "rate"
  * parameter, which is propagated so that an audio signal can be
  * reconstructed eventually.  This module does no rate conversion.
- * 
+ *
  * The way I understand it, there are two times when caps negotiation
  * takes place: (1) when a sink pad receives either its first buffer,
  * or a buffer with a new caps type, and (2) when a source pad request
@@ -395,225 +357,195 @@ alloc_fftw_data (GstFFTWSpectrum *conv)
  * part of the internal configuration.
  */
 
-static gboolean
-gst_fftwspectrum_set_sink_caps (GstPad * pad, GstCaps * caps)
-{
-  GstFFTWSpectrum *conv;
-  GstCaps *srccaps, *newsrccaps;
-  GstStructure *newstruct;
+static gboolean gst_fftwspectrum_set_sink_caps(GstPad* pad, GstCaps* caps) {
+  GstFFTWSpectrum* conv;
+  GstCaps* srccaps, *newsrccaps;
+  GstStructure* newstruct;
   gint rate;
   gboolean res;
 
-  conv = GST_FFTWSPECTRUM (gst_pad_get_parent (pad));
+  conv = GST_FFTWSPECTRUM(gst_pad_get_parent(pad));
 
-  srccaps = gst_pad_get_allowed_caps (conv->srcpad);
-  newsrccaps = gst_caps_copy_nth (srccaps, 0);
-  gst_caps_unref (srccaps);
+  srccaps = gst_pad_get_allowed_caps(conv->srcpad);
+  newsrccaps = gst_caps_copy_nth(srccaps, 0);
+  gst_caps_unref(srccaps);
 
-  newstruct = gst_caps_get_structure (caps, 0);
-  if (!gst_structure_get_int (newstruct, "rate", &rate))
-    {
-      gst_caps_unref (newsrccaps);
-      gst_object_unref (conv);
-      return FALSE;
-    }
+  newstruct = gst_caps_get_structure(caps, 0);
+  if (!gst_structure_get_int(newstruct, "rate", &rate)) {
+    gst_caps_unref(newsrccaps);
+    gst_object_unref(conv);
+    return FALSE;
+  }
 
   /* Fixate the source caps with the given rate */
-  gst_caps_set_simple (newsrccaps, "rate", G_TYPE_INT, rate, NULL);
-  //gst_pad_fixate_caps (conv->srcpad, newsrccaps);
+  gst_caps_set_simple(newsrccaps, "rate", G_TYPE_INT, rate, NULL);
+  // gst_pad_fixate_caps (conv->srcpad, newsrccaps);
   conv->rate = rate;
-  res = gst_pad_set_caps (conv->srcpad, newsrccaps);
-  if (!res)
-    conv->rate = 0;
-  
-  gst_caps_unref (newsrccaps);
-  gst_object_unref (conv);
+  res = gst_pad_set_caps(conv->srcpad, newsrccaps);
+  if (!res) conv->rate = 0;
+
+  gst_caps_unref(newsrccaps);
+  gst_object_unref(conv);
 
   return res;
 }
 
-static gboolean
-gst_fftwspectrum_set_src_caps (GstPad * pad, GstCaps * caps)
-{
-  GstFFTWSpectrum *conv;
+static gboolean gst_fftwspectrum_set_src_caps(GstPad* pad, GstCaps* caps) {
+  GstFFTWSpectrum* conv;
   gboolean res = FALSE;
-  GstStructure *newstruct;
+  GstStructure* newstruct;
   gint rate;
 
-  conv = GST_FFTWSPECTRUM (gst_pad_get_parent (pad));
+  conv = GST_FFTWSPECTRUM(gst_pad_get_parent(pad));
 
-  newstruct = gst_caps_get_structure (caps, 0);
-  if (!gst_structure_get_int (newstruct, "rate", &rate))
-    goto out;
+  newstruct = gst_caps_get_structure(caps, 0);
+  if (!gst_structure_get_int(newstruct, "rate", &rate)) goto out;
 
   /* Assume caps negotiation has already taken place */
-  if (rate == conv->rate)
-    {
-      gint size, step;
+  if (rate == conv->rate) {
+    gint size, step;
 
-      if (!gst_structure_get_int (newstruct, "size", &size))
-	goto out;
-      if (!gst_structure_get_int (newstruct, "step", &step))
-	goto out;
+    if (!gst_structure_get_int(newstruct, "size", &size)) goto out;
+    if (!gst_structure_get_int(newstruct, "step", &step)) goto out;
 
-      if (conv->size != size  ||  conv->step != step)
-	{
-	  conv->size = size;
-	  conv->step = step;
-	  
-	  /* Re-allocate the fftw data */
-	  if (GST_STATE (GST_ELEMENT (conv)) >= GST_STATE_READY)
-	    alloc_fftw_data (conv);
-	}
+    if (conv->size != size || conv->step != step) {
+      conv->size = size;
+      conv->step = step;
 
-      res = TRUE;
+      /* Re-allocate the fftw data */
+      if (GST_STATE(GST_ELEMENT(conv)) >= GST_STATE_READY)
+        alloc_fftw_data(conv);
     }
 
- out:
-  gst_object_unref (conv);
+    res = TRUE;
+  }
+
+out:
+  gst_object_unref(conv);
 
   return res;
 }
 
+/* The only thing that can constrain the caps is the rate. */
+static GstCaps* gst_fftwspectrum_getcaps(GstPad* pad) {
+  GstFFTWSpectrum* conv;
+  GstCaps* tmplcaps;
 
-/* The only thing that can constrain the caps is the rate. */ 
-static GstCaps *
-gst_fftwspectrum_getcaps (GstPad *pad)
-{
-  GstFFTWSpectrum *conv;
-  GstCaps *tmplcaps;
+  conv = GST_FFTWSPECTRUM(gst_pad_get_parent(pad));
+  tmplcaps = gst_caps_copy(gst_pad_get_pad_template_caps(pad));
 
-  conv = GST_FFTWSPECTRUM (gst_pad_get_parent (pad));
-  tmplcaps = gst_caps_copy (gst_pad_get_pad_template_caps (pad));
-  
-  if(conv->rate != 0)
-    {
-      /* Assumes the template caps are simple */
-      gst_caps_set_simple (tmplcaps, "rate", G_TYPE_INT, conv->rate, NULL);
-    }
+  if (conv->rate != 0) {
+    /* Assumes the template caps are simple */
+    gst_caps_set_simple(tmplcaps, "rate", G_TYPE_INT, conv->rate, NULL);
+  }
 
-  gst_object_unref (conv);  
+  gst_object_unref(conv);
 
   return tmplcaps;
 }
-
 
 /* This is called when the source pad needs to choose its capabilities
  * when it has a choice and nobody's forcing its hand.  In this case
  * we take our hint from the def_size and def_step properties.
  */
-static void
-gst_fftwspectrum_fixatecaps (GstPad *pad, GstCaps *caps)
-{
-  GstFFTWSpectrum *conv;
-  GstStructure *s;
-  const GValue *val;
+static void gst_fftwspectrum_fixatecaps(GstPad* pad, GstCaps* caps) {
+  GstFFTWSpectrum* conv;
+  GstStructure* s;
+  const GValue* val;
 
-  conv = GST_FFTWSPECTRUM (gst_pad_get_parent (pad));
-  s = gst_caps_get_structure (caps, 0);
+  conv = GST_FFTWSPECTRUM(gst_pad_get_parent(pad));
+  s = gst_caps_get_structure(caps, 0);
 
-  val = gst_structure_get_value (s, "size");
+  val = gst_structure_get_value(s, "size");
   if (val == NULL)
-    gst_caps_set_simple (caps, "size", G_TYPE_INT, conv->def_size, NULL);
-  else if (G_VALUE_TYPE (val) == GST_TYPE_INT_RANGE)
-    {
-      gint sizemin, sizemax;
-      sizemin = gst_value_get_int_range_min (val);
-      sizemax = gst_value_get_int_range_max (val);
-      gst_caps_set_simple (caps, "size", G_TYPE_INT, 
-			   CLAMP (conv->def_size, sizemin, sizemax), NULL);
-    }
+    gst_caps_set_simple(caps, "size", G_TYPE_INT, conv->def_size, NULL);
+  else if (G_VALUE_TYPE(val) == GST_TYPE_INT_RANGE) {
+    gint sizemin, sizemax;
+    sizemin = gst_value_get_int_range_min(val);
+    sizemax = gst_value_get_int_range_max(val);
+    gst_caps_set_simple(caps, "size", G_TYPE_INT,
+                        CLAMP(conv->def_size, sizemin, sizemax), NULL);
+  }
   /* else it should be already fixed */
-  
-  val = gst_structure_get_value (s, "step");
+
+  val = gst_structure_get_value(s, "step");
   if (val == NULL)
-    gst_caps_set_simple (caps, "step", G_TYPE_INT, conv->def_step, NULL);
-  else if (G_VALUE_TYPE (val) == GST_TYPE_INT_RANGE)
-    {
-      gint stepmin, stepmax;
-      stepmin = gst_value_get_int_range_min (val);
-      stepmax = gst_value_get_int_range_max (val);
-      gst_caps_set_simple (caps, "step", G_TYPE_INT, 
-			   CLAMP (conv->def_step, stepmin, stepmax), NULL);
-    }
+    gst_caps_set_simple(caps, "step", G_TYPE_INT, conv->def_step, NULL);
+  else if (G_VALUE_TYPE(val) == GST_TYPE_INT_RANGE) {
+    gint stepmin, stepmax;
+    stepmin = gst_value_get_int_range_min(val);
+    stepmax = gst_value_get_int_range_max(val);
+    gst_caps_set_simple(caps, "step", G_TYPE_INT,
+                        CLAMP(conv->def_step, stepmin, stepmax), NULL);
+  }
   /* else it should be already fixed */
 
   /* Assume rate is already fixed (if not it'll be fixed by default) */
 
-  gst_object_unref (conv);  
+  gst_object_unref(conv);
 }
-
 
 /***************************************************************/
 /* Actual conversion                                           */
 /***************************************************************/
 
-
-static GstStateChangeReturn 
-gst_fftwspectrum_change_state (GstElement * element,
-			       GstStateChange transition)
-{
-  GstFFTWSpectrum *conv = GST_FFTWSPECTRUM (element);
+static GstStateChangeReturn gst_fftwspectrum_change_state(
+    GstElement* element, GstStateChange transition) {
+  GstFFTWSpectrum* conv = GST_FFTWSPECTRUM(element);
   GstStateChangeReturn res;
 
-  switch (transition)
-    {
+  switch (transition) {
     case GST_STATE_CHANGE_NULL_TO_READY:
-      alloc_fftw_data (conv);
+      alloc_fftw_data(conv);
       break;
     case GST_STATE_CHANGE_READY_TO_PAUSED:
-      conv->samples    = (gdouble *) g_malloc (sizeof(gdouble));
+      conv->samples = (gdouble*)g_malloc(sizeof(gdouble));
       conv->numsamples = 0;
-      conv->timestamp  = 0;
-      conv->offset     = 0;
+      conv->timestamp = 0;
+      conv->offset = 0;
       break;
     case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
       break;
     default:
       break;
-    }
+  }
 
   res = GST_ELEMENT_CLASS(gst_fftwspectrum_parent_class)
-      ->change_state(element, transition);
+            ->change_state(element, transition);
 
-  switch (transition)
-    {
+  switch (transition) {
     case GST_STATE_CHANGE_PLAYING_TO_PAUSED:
       break;
-    case GST_STATE_CHANGE_PAUSED_TO_READY:      
+    case GST_STATE_CHANGE_PAUSED_TO_READY:
       g_free(conv->samples);
-      conv->samples    = NULL;
+      conv->samples = NULL;
       conv->numsamples = 0;
-      conv->timestamp  = 0;
-      conv->offset     = 0;
+      conv->timestamp = 0;
+      conv->offset = 0;
       break;
     case GST_STATE_CHANGE_READY_TO_NULL:
-      free_fftw_data (conv);
+      free_fftw_data(conv);
       break;
     default:
       break;
-    }
+  }
 
   return res;
 }
 
-
 /* Adds the samples contained in buf to the end of conv->samples,
  * updating conv->numsamples.
  */
-static void 
-push_samples (GstFFTWSpectrum *conv, GstBuffer *buf)
-{
+static void push_samples(GstFFTWSpectrum* conv, GstBuffer* buf) {
   GstMapInfo map;
   gst_buffer_map(buf, &map, GST_MAP_READ);
 
-  gint newsamples = map.size / sizeof (gdouble);
+  gint newsamples = map.size / sizeof(gdouble);
   gint oldsamples = conv->numsamples;
 
   conv->numsamples += newsamples;
-  conv->samples = g_realloc (conv->samples, conv->numsamples * sizeof (gdouble));
-  memcpy (&conv->samples[oldsamples], map.data,
-    newsamples * sizeof (gdouble));
+  conv->samples = g_realloc(conv->samples, conv->numsamples * sizeof(gdouble));
+  memcpy(&conv->samples[oldsamples], map.data, newsamples * sizeof(gdouble));
 
   /* GST_LOG ("Added %d samples", newsamples); */
 
@@ -623,43 +555,40 @@ push_samples (GstFFTWSpectrum *conv, GstBuffer *buf)
 /* This basically does the opposite of push_samples, but takes samples
  * off the front.
  */
-static void
-shift_samples (GstFFTWSpectrum *conv, gint toshift)
-{
-  gdouble *oldsamples = conv->samples;
+static void shift_samples(GstFFTWSpectrum* conv, gint toshift) {
+  gdouble* oldsamples = conv->samples;
 
   conv->numsamples -= toshift;
-  conv->samples = g_malloc (MAX (conv->numsamples, 1) * sizeof (double));
-  memcpy (conv->samples, &oldsamples[toshift], 
-    conv->numsamples * sizeof (gdouble));
-  g_free (oldsamples);
+  conv->samples = g_malloc(MAX(conv->numsamples, 1) * sizeof(double));
+  memcpy(conv->samples, &oldsamples[toshift],
+         conv->numsamples * sizeof(gdouble));
+  g_free(oldsamples);
 
   /* Fix the timestamp and offset */
-  conv->timestamp 
-    += gst_util_uint64_scale_int (GST_SECOND, toshift, conv->rate);
+  conv->timestamp += gst_util_uint64_scale_int(GST_SECOND, toshift, conv->rate);
   conv->offset += toshift;
 
-  /* GST_LOG ("Disposed of %d samples (time: %" GST_TIME_FORMAT " offset: %llu)",
+  /* GST_LOG ("Disposed of %d samples (time: %" GST_TIME_FORMAT " offset:
+     %llu)",
      toshift, GST_TIME_ARGS(conv->timestamp), conv->offset); */
 }
-
 
 /* This function queues samples until there are at least
  * max (conv->size, conv->step) samples to process.  We
  * then process samples in chunks of conv->size and increment
  * by conv->step.
  */
-static GstFlowReturn
-gst_fftwspectrum_chain(GstPad* pad, GstObject* object, GstBuffer* buf)
-{
-  GstFFTWSpectrum *conv = GST_FFTWSPECTRUM(object);
-  GstBuffer *outbuf;
+static GstFlowReturn gst_fftwspectrum_chain(GstPad* pad, GstObject* object,
+                                            GstBuffer* buf) {
+  GstFFTWSpectrum* conv = GST_FFTWSPECTRUM(object);
+  GstBuffer* outbuf;
   GstFlowReturn res = GST_FLOW_OK;
 
-  push_samples (conv, buf);
-  gst_buffer_unref (buf);
+  push_samples(conv, buf);
+  gst_buffer_unref(buf);
 
-  GstQuery* query = gst_query_new_allocation(gst_pad_get_current_caps(pad), TRUE);
+  GstQuery* query =
+      gst_query_new_allocation(gst_pad_get_current_caps(pad), TRUE);
   if (!gst_pad_peer_query(pad, query)) {
     // Query failed, not a problem, we use the query defaults.
   }
@@ -676,60 +605,56 @@ gst_fftwspectrum_chain(GstPad* pad, GstObject* object, GstBuffer* buf)
   }
 
   GstStructure* config = gst_buffer_pool_get_config(pool);
-  gst_buffer_pool_config_set_params(
-      config, gst_pad_get_current_caps(pad), size, min, max);
+  gst_buffer_pool_config_set_params(config, gst_pad_get_current_caps(pad), size,
+                                    min, max);
   gst_buffer_pool_set_config(pool, config);
 
   gst_buffer_pool_set_active(pool, TRUE);
 
-  while (conv->numsamples >= MAX (conv->size, conv->step))
-    {
-      /*
-      res = gst_pad_alloc_buffer_and_set_caps(
-          conv->srcpad,
-          conv->offset,
-          OUTPUT_SIZE(conv),
-          GST_PAD_CAPS(conv->srcpad),
-          &outbuf);
-      */
+  while (conv->numsamples >= MAX(conv->size, conv->step)) {
+    /*
+    res = gst_pad_alloc_buffer_and_set_caps(
+        conv->srcpad,
+        conv->offset,
+        OUTPUT_SIZE(conv),
+        GST_PAD_CAPS(conv->srcpad),
+        &outbuf);
+    */
 
-      res = gst_buffer_pool_acquire_buffer(pool, &outbuf, NULL);
+    res = gst_buffer_pool_acquire_buffer(pool, &outbuf, NULL);
 
-      if (res != GST_FLOW_OK)
-        break;
+    if (res != GST_FLOW_OK) break;
 
-      gst_buffer_set_size(outbuf, OUTPUT_SIZE(conv));
-      GST_BUFFER_OFFSET     (outbuf) = conv->offset;
-      GST_BUFFER_OFFSET_END (outbuf) = conv->offset + conv->step;
-      GST_BUFFER_TIMESTAMP  (outbuf) = conv->timestamp;
-      GST_BUFFER_DURATION   (outbuf) =
-          gst_util_uint64_scale_int (GST_SECOND, conv->step, conv->rate);
+    gst_buffer_set_size(outbuf, OUTPUT_SIZE(conv));
+    GST_BUFFER_OFFSET(outbuf) = conv->offset;
+    GST_BUFFER_OFFSET_END(outbuf) = conv->offset + conv->step;
+    GST_BUFFER_TIMESTAMP(outbuf) = conv->timestamp;
+    GST_BUFFER_DURATION(outbuf) =
+        gst_util_uint64_scale_int(GST_SECOND, conv->step, conv->rate);
 
-      /* Do the Fourier transform */
-      memcpy (conv->fftw_in, conv->samples, conv->size * sizeof (double));
-      fftw_execute (conv->fftw_plan);
-      { /* Normalize */
-        gint i;
-        gfloat root = sqrtf (conv->size);
-        for (i = 0; i < 2*(conv->size/2+1); ++i) {
-          conv->fftw_out[i] /= root;
-        }
+    /* Do the Fourier transform */
+    memcpy(conv->fftw_in, conv->samples, conv->size * sizeof(double));
+    fftw_execute(conv->fftw_plan);
+    { /* Normalize */
+      gint i;
+      gfloat root = sqrtf(conv->size);
+      for (i = 0; i < 2 * (conv->size / 2 + 1); ++i) {
+        conv->fftw_out[i] /= root;
       }
-      GstMapInfo map;
-      gst_buffer_map(outbuf, &map, GST_MAP_WRITE);
-      memcpy (map.data, conv->fftw_out, OUTPUT_SIZE (conv));
-      gst_buffer_unmap(outbuf, &map);
-
-      res = gst_pad_push (conv->srcpad, outbuf);
-
-      shift_samples (conv, conv->step);
-
-      if (res != GST_FLOW_OK)
-	break;
     }
+    GstMapInfo map;
+    gst_buffer_map(outbuf, &map, GST_MAP_WRITE);
+    memcpy(map.data, conv->fftw_out, OUTPUT_SIZE(conv));
+    gst_buffer_unmap(outbuf, &map);
 
-  gst_object_unref (conv);
+    res = gst_pad_push(conv->srcpad, outbuf);
+
+    shift_samples(conv, conv->step);
+
+    if (res != GST_FLOW_OK) break;
+  }
+
+  gst_object_unref(conv);
 
   return res;
 }
-
